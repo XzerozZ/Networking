@@ -1,24 +1,40 @@
-version: '3.1'
-
 services:
-  postgres:
-    image: postgres:latest
-    container_name: Network
+  api-gateway:
+    build: 
+      context: ./api-gateway
+      dockerfile: DockerFile.api-gateway
     ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: network
-    volumes:
-      - ./data:/var/lib/postgresql/data
+      - "8080:8080"
+    networks:
+      - routing-network
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: my_pgadmin
+  router-service:
+    build: 
+      context: ./router-service
+      dockerfile: DockerFile.router-service
     ports:
-      - "5050:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    restart: always
+      - "8081:8081"
+    networks:
+      - routing-network
+
+  connection-service:
+    build: 
+      context: ./connection-service
+      dockerfile: DockerFile.connection-service
+    ports:
+      - "8082:8082"
+    networks:
+      - routing-network
+
+  discovery-service:
+    build: 
+      context: ./discovery-service
+      dockerfile: DockerFile.discovery-service
+    ports:
+      - "8083:8083"
+    networks:
+      - routing-network
+
+networks:
+  routing-network:
+    driver: bridge

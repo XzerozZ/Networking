@@ -1,0 +1,30 @@
+# เลือก base image สำหรับ Go
+FROM golang:1.23.2-alpine AS builder
+
+# กำหนด directory ทำงาน
+WORKDIR /app
+
+# คัดลอก go.mod 
+COPY go.mod ./
+# เพิ่มคำสั่ง go get เพื่อให้ go.sum มีการอ้างอิงที่ถูกต้อง
+RUN go get github.com/gorilla/mux
+# ดาวน์โหลด dependencies
+RUN go mod tidy
+
+# คัดลอก source code ของบริการ
+COPY . .
+
+# สร้างแอปพลิเคชัน
+RUN go build -o api-gateway .
+
+# สร้าง image สุดท้าย
+FROM alpine:latest
+
+# กำหนด working directory
+WORKDIR /root/
+
+# คัดลอกไฟล์ที่สร้างจาก builder
+COPY --from=builder /app/api-gateway .
+
+# กำหนด command ที่จะรันเมื่อ container เริ่ม
+CMD ["./api-gateway"]
