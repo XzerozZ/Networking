@@ -1,40 +1,43 @@
+version: "3.8"
+
 services:
-  api-gateway:
-    build: 
-      context: ./api-gateway
-      dockerfile: DockerFile.api-gateway
+  controller:
+    build:
+      context: ./controller
+      dockerfile: Dockerfile.controller
     ports:
       - "8080:8080"
-    networks:
-      - routing-network
+    depends_on:
+      - node1
+      - node2
+      - node3
 
-  router-service:
-    build: 
-      context: ./router-service
-      dockerfile: DockerFile.router-service
+  node1:
+    build:
+      context: ./node
+      dockerfile: Dockerfile.node
+    environment:
+      - NODE_NAME=node1
+      - NODE_PORT=8080
     ports:
-      - "8081:8081"
-    networks:
-      - routing-network
+      - "8081:8080"
 
-  connection-service:
-    build: 
-      context: ./connection-service
-      dockerfile: DockerFile.connection-service
+  node2:
+    build:
+      context: ./node
+      dockerfile: Dockerfile.node
+    environment:
+      - NODE_NAME=node2
+      - NODE_PORT=8080
     ports:
-      - "8082:8082"
-    networks:
-      - routing-network
+      - "8082:8080"
 
-  discovery-service:
-    build: 
-      context: ./discovery-service
-      dockerfile: DockerFile.discovery-service
+  node3:
+    build:
+      context: ./node
+      dockerfile: Dockerfile.node
+    environment:
+      - NODE_NAME=node3
+      - NODE_PORT=8080
     ports:
-      - "8083:8083"
-    networks:
-      - routing-network
-
-networks:
-  routing-network:
-    driver: bridge
+      - "8083:8080"
