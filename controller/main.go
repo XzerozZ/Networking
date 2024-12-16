@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"sync"
+	"net/http"
+	"github.com/gofiber/fiber/v2"
 )
 
 type UpdateRequest struct {
@@ -21,39 +22,35 @@ type DistanceUpdate struct {
 
 var distances = map[string]float64{
 	"node1": 0,
-	"node2": 1e9, // Initial value as infinity
+	"node2": 1e9,
 	"node3": 1e9,
 }
 
 var nodes = []string{"node1", "node2", "node3"}
 var mu sync.Mutex
 
-func updateHandler(w http.ResponseWriter, r *http.Request) {
+func updateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request",
+		})
 	}
 
 	mu.Lock()
-	defer mu.Unlock()
-
-	// Relaxation
 	if distances[req.Source]+req.Weight < distances[req.Dest] {
 		distances[req.Dest] = distances[req.Source] + req.Weight
 		propagateUpdates()
 	}
+	mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(distances)
+	return c.JSON(distances)
 }
 
-func distancesHandler(w http.ResponseWriter, r *http.Request) {
+func distancesHandler(c *fiber.Ctx) error {
 	mu.Lock()
 	defer mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(distances)
+	return c.JSON(distances)
 }
 
 func propagateUpdates() {
@@ -62,7 +59,7 @@ func propagateUpdates() {
 		data, _ := json.Marshal(DistanceUpdate{Distances: distances})
 
 		go func(nodeURL string, payload []byte) {
-			for retries := 0; retries < 3; retries++ { // Retry up to 3 times
+			for retries := 0; retries < 3; retries++ {
 				resp, err := http.Post(nodeURL, "application/json", bytes.NewReader(payload))
 				if err == nil && resp.StatusCode == http.StatusOK {
 					defer resp.Body.Close()
@@ -75,27 +72,26 @@ func propagateUpdates() {
 	}
 }
 
-func finalResultHandler(w http.ResponseWriter, r *http.Request) {
+func finalResultHandler(c *fiber.Ctx) error {
 	mu.Lock()
 	defer mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"final_distances": distances,
 	})
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+func healthHandler(c *fiber.Ctx) error {
+	return c.SendString("OK")
 }
 
 func main() {
-	http.HandleFunc("/update", updateHandler)
-	http.HandleFunc("/distances", distancesHandler)
-	http.HandleFunc("/final_result", finalResultHandler)
-	http.HandleFunc("/health", healthHandler)
+	app := fiber.New()
+
+	app.Post("/update", updateHandler)
+	app.Get("/distances", distancesHandler)
+	app.Get("/final_result", finalResultHandler)
+	app.Get("/health", healthHandler)
 
 	log.Println("Controller service running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(app.Listen(":8080"))
 }

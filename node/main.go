@@ -1,49 +1,49 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"sync"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type DistanceUpdate struct {
 	Distances map[string]float64 `json:"distances"`
 }
 
-var distances = map[string]float64{}
-var mu sync.Mutex
-var nodeID string
+var (
+	distances = map[string]float64{}
+	mu        sync.Mutex
+	nodeID    string
+)
 
-func updateHandler(w http.ResponseWriter, r *http.Request) {
+func updateHandler(c *fiber.Ctx) error {
 	var req DistanceUpdate
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request",
+		})
 	}
 
 	mu.Lock()
-	defer mu.Unlock()
 	distances = req.Distances
-	log.Printf("Node %s updated distances: %v", nodeID, distances)
+	mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+	log.Printf("Node %s updated distances: %v", nodeID, distances)
+	return c.JSON(fiber.Map{
+		"status": "updated",
+	})
 }
 
-func distancesHandler(w http.ResponseWriter, r *http.Request) {
+func distancesHandler(c *fiber.Ctx) error {
 	mu.Lock()
 	defer mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(distances)
+	return c.JSON(distances)
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+func healthHandler(c *fiber.Ctx) error {
+	return c.SendString("OK")
 }
 
 func main() {
@@ -53,10 +53,12 @@ func main() {
 		port = "8080"
 	}
 
-	http.HandleFunc("/update", updateHandler)
-	http.HandleFunc("/distances", distancesHandler)
-	http.HandleFunc("/health", healthHandler)
+	app := fiber.New()
+
+	app.Post("/update", updateHandler)
+	app.Get("/distances", distancesHandler)
+	app.Get("/health", healthHandler)
 
 	log.Printf("Node %s service running on :%s", nodeID, port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+	log.Fatal(app.Listen(":" + port))
 }
