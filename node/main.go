@@ -47,6 +47,24 @@ func healthHandler(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
+func restartHandler(c *fiber.Ctx) error {
+	var req DistanceUpdate
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request",
+		})
+	}
+
+	mu.Lock()
+	distances = req.Distances
+	mu.Unlock()
+
+	log.Printf("Node %s updated distances: %v", nodeID, distances)
+	return c.JSON(fiber.Map{
+		"status": "updated",
+	})
+}
+
 func main() {
 	nodeID = os.Getenv("NODE_ID")
 	port := os.Getenv("PORT")

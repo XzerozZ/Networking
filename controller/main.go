@@ -85,6 +85,19 @@ func finalResultHandler(c *fiber.Ctx) error {
 func healthHandler(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
+func restartHandler(c *fiber.Ctx) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	distances = map[string]float64{
+		"node1": 0,
+		"node2": 1e9,
+		"node3": 1e9,
+	}
+
+	log.Println("Distances have been reset to default values")
+	return c.SendString("Distances have been reset")
+}
 
 func main() {
 	app := fiber.New()
@@ -99,6 +112,7 @@ func main() {
 	app.Get("/distances", distancesHandler)
 	app.Get("/final_result", finalResultHandler)
 	app.Get("/health", healthHandler)
+	app.Post("/restart", restartHandler)
 
 	log.Println("Controller service running on :8080")
 	log.Fatal(app.Listen(":8080"))
