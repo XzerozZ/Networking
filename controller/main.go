@@ -7,7 +7,9 @@ import (
 	"log"
 	"sync"
 	"net/http"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 type UpdateRequest struct {
@@ -87,6 +89,12 @@ func healthHandler(c *fiber.Ctx) error {
 func main() {
 	app := fiber.New()
 
+	app.Use(cors.New(cors.Config{
+        AllowOrigins: "*",
+        AllowMethods: "GET,POST,PUT,DELETE",
+        AllowHeaders: "Content-Type",
+    }))
+	
 	app.Post("/update", updateHandler)
 	app.Get("/distances", distancesHandler)
 	app.Get("/final_result", finalResultHandler)
