@@ -99,7 +99,7 @@ func resetHandler(c *fiber.Ctx) error {
 }
 func propagateReset() {
 	for _, node := range nodes {
-		url := fmt.Sprintf("http://%s:8080/reset", node)
+		url := fmt.Sprintf("http://%s:8080/restart", node)
 		data, _ := json.Marshal(DistanceUpdate{Distances: distances})
 
 		go func(nodeURL string, payload []byte) {
@@ -129,7 +129,7 @@ func main() {
 	app.Get("/distances", distancesHandler)
 	app.Get("/final_result", finalResultHandler)
 	app.Get("/health", healthHandler)
-	app.Post("/reset", resetHandler)
+	app.Post("/restart", resetHandler)
 
 	log.Println("Controller service running on :8080")
 	log.Fatal(app.Listen(":8080"))

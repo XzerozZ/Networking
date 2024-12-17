@@ -72,7 +72,7 @@ func main() {
 	app.Post("/update", updateHandler)
 	app.Get("/distances", distancesHandler)
 	app.Get("/health", healthHandler)
-	app.Post("/reset", resetHandler)
+	app.Post("/restart", resetHandler)
 
 	log.Printf("Node %s service running on :%s", nodeID, port)
 	log.Fatal(app.Listen(":" + port))
