@@ -85,18 +85,35 @@ func finalResultHandler(c *fiber.Ctx) error {
 func healthHandler(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
-func restartHandler(c *fiber.Ctx) error {
+func resetHandler(c *fiber.Ctx) error {
 	mu.Lock()
 	defer mu.Unlock()
-
 	distances = map[string]float64{
 		"node1": 0,
 		"node2": 1e9,
 		"node3": 1e9,
 	}
+	propagateReset()
 
-	log.Println("Distances have been reset to default values")
-	return c.SendString("Distances have been reset")
+	return c.JSON(fiber.Map{"status": "reset completed"})
+}
+func propagateReset() {
+	for _, node := range nodes {
+		url := fmt.Sprintf("http://%s:8080/reset", node)
+		data, _ := json.Marshal(DistanceUpdate{Distances: distances})
+
+		go func(nodeURL string, payload []byte) {
+			for retries := 0; retries < 3; retries++ {
+				resp, err := http.Post(nodeURL, "application/json", bytes.NewReader(payload))
+				if err == nil && resp.StatusCode == http.StatusOK {
+					defer resp.Body.Close()
+					return
+				}
+				log.Printf("Retry %d for Node %s failed: %v", retries+1, nodeURL, err)
+			}
+			log.Printf("Failed to update node %s after retries", nodeURL)
+		}(url, data)
+	}
 }
 
 func main() {
@@ -112,7 +129,7 @@ func main() {
 	app.Get("/distances", distancesHandler)
 	app.Get("/final_result", finalResultHandler)
 	app.Get("/health", healthHandler)
-	app.Post("/restart", restartHandler)
+	app.Post("/reset", resetHandler)
 
 	log.Println("Controller service running on :8080")
 	log.Fatal(app.Listen(":8080"))

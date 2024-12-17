@@ -47,22 +47,11 @@ func healthHandler(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
-func restartHandler(c *fiber.Ctx) error {
-	var req DistanceUpdate
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request",
-		})
-	}
-
+func resetHandler(c *fiber.Ctx) error {
 	mu.Lock()
-	distances = req.Distances
-	mu.Unlock()
-
-	log.Printf("Node %s updated distances: %v", nodeID, distances)
-	return c.JSON(fiber.Map{
-		"status": "updated",
-	})
+	defer mu.Unlock()
+	distances = map[string]float64{}
+	return c.JSON(fiber.Map{"status": "reset completed"})
 }
 
 func main() {
@@ -83,6 +72,7 @@ func main() {
 	app.Post("/update", updateHandler)
 	app.Get("/distances", distancesHandler)
 	app.Get("/health", healthHandler)
+	app.Post("/reset", resetHandler)
 
 	log.Printf("Node %s service running on :%s", nodeID, port)
 	log.Fatal(app.Listen(":" + port))
